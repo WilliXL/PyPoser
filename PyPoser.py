@@ -26,53 +26,82 @@ MSO = MelodyStartOctave
 
 keyList = ["C","G","D","A","E","B","F#","C#","F","Bb","Eb","Ab","Db","Gb","Cb"] 
 # list of all of the keys
-noteList = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+notes = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"] # starts on "C"
 # list of all of the notes
 
 def generateMusic(length,key,tempo,genre): # length: 15-30, tempo: 70-140
     finalPieceMelody = []
-    # data taken directly from the journal
-    probabilityType = [["unison",25], # playing an octave at the same time
-                                      # coordinated with harmony
-                       ["octave",2],  # stepping eight notes at once
-                       ["step",48],   # stepping whole step in either direction
-                       ["skip",25]]   # skip refers to an interval
-                   
-    probabilityInterval = [[7,25], # perfect fifth
-                           [5,2],  # perfect fourth
-                           [4,48], # third
-                           [9,25]] # sixth
-                       
-    probabilityLength = [[16,10], 
-                         [8,31],       
-                         [4,40],      
-                         [3,7], 
-                         [2,9],        
-                         [1,3]]       
-                         
-    probabilityKey = [["G",73],
-                      ["F",73],
-                      ["C",68],
-                      ["Am",56],
-                      ["Dm",26],
-                      ["Em",17],
-                      ["E",10],
-                      ["D",6],
-                      ["Bb",2],
-                      ["A",2]]
     
     def expandProbability(probabilityTable):
         result = []
         for list in probabilityTable:
             result += ["%s" %(list[0])]*list[1]
         return result
+        
+    def centerNotes(notes,key): # takes notes and returns a noteList that's
+                                   # centered on tonic based on key
+        return notes
+        
+    
+    ##################################
+    # Standard Pop Song Probabilities
+    ##################################
+    
+    # data taken directly from the journal
+    probabilityTypeSTD = [["unison",25], # playing an octave at the same time
+                                      # coordinated with harmony
+                          ["octave",2],  # stepping eight notes at once
+                          ["step",48],   # stepping whole step
+                          ["skip",25]]   # skip refers to an interval
+                   
+    probabilityIntervalSTD = [[7,25], # perfect fifth
+                              [5,2],  # perfect fourth
+                              [4,48], # third
+                              [9,25]] # sixth
+                       
+    probabilityLengthSTD = [[16,10], 
+                            [8,31],       
+                            [4,40],      
+                            [3,7], 
+                            [2,9],        
+                            [1,3]]       
+    
+    #####################
+    # Jazz Probabilities
+    #####################
+    
+    # TBA
+    
+    scaleTypes = ["hexatonic","heptatonic","nonatonic"]
+    scaleType = random.choice(scaleTypes)
+    def makeJazzScale(noteList,scaleType,key):
+        pass
+    
+    ###################
+    # Genre Dispatcher
+    ###################
+    if (genre == "Standard Pop"):
+        probabilityType = probabilityTypeSTD
+        probabilityInterval = probabilityIntervalSTD
+        probabilityLength = probabilityLengthSTD
+        noteList = centerNotes(notes,"C")
+    elif (genre == "Jazz"):
+        pass
+        
+    ##############################
+    # Randomly Assigned Variables
+    ##############################
                      
     meters = ["2/4","3/4","4/4","5/4"] # list of choosable meters
     meter = random.choice(meters) # selects a random meter to compose upon
     moods = ["major","minor"]
-    mood = random.choice(moods)
+    mood = random.choice(moods) # either major or minor
+    
+    #######################
+    # Calculated Variables
+    #######################
 
-    def titleCreator(mood,key):
+    def titleCreator(mood,key): # TBA
         happyNouns = ["Love","Yesterday","Piano","Heaven","Babe","Freedom",
             "Home","Weekend","Wonder","Night","Message","Heart,","Gold","Grace"]
         happyVerbs = ["Out","Imagine","Rising","Need","Love","Look","Falling",
@@ -81,8 +110,10 @@ def generateMusic(length,key,tempo,genre): # length: 15-30, tempo: 70-140
         title = ""
         # if (mood == "major"):
         #TBA
+        
     def getMainMeasures(length,tempo,meter):
         return int((tempo*MinsPerSec*length/int(meter[0])))
+        
     def getEndingMeasures(mainLength):
         return mainLength//8
     
@@ -91,6 +122,8 @@ def generateMusic(length,key,tempo,genre): # length: 15-30, tempo: 70-140
     def getProbability(probabilityTable):
         probabilities = expandProbability(probabilityTable)
         return random.choice(probabilities)
+    
+    
     
     def mainPartGenerator(mainLength,key,tempo,genre):
         nonlocal finalPieceMelody
@@ -119,7 +152,8 @@ def generateMusic(length,key,tempo,genre): # length: 15-30, tempo: 70-140
             length = int(getProbability(probabilityLength))
             if (skipOctave == False):
                 if (type == "unison"):
-                    print ('hi')
+                    print ('Unison')
+                    print (finalPieceMelody)
                 if (type == "octave"):
                     directions = ["down","up"]
                     direction = random.choice(directions)
@@ -135,7 +169,9 @@ def generateMusic(length,key,tempo,genre): # length: 15-30, tempo: 70-140
                         finalPieceMelody.append(newNote)
                         octaveDirection = "down"
                         currNote = newNote
-                    skipOctave = True
+                    #skipOctave = True
+                    print ('Octave')
+                    print (finalPieceMelody)
                 if (type == "skip"):
                     directions = ["down","up"]
                     direction = random.choice(directions)
@@ -152,6 +188,8 @@ def generateMusic(length,key,tempo,genre): # length: 15-30, tempo: 70-140
                             len(noteList)]).lower(),MSO),length))
                         finalPieceMelody.append(newNote)
                         currNote = newNote
+                    print ('Skip')
+                    print (finalPieceMelody)
                 if (type == "step"):
                     directions = ["down","up"]
                     direction = random.choice(directions)
@@ -167,13 +205,15 @@ def generateMusic(length,key,tempo,genre): # length: 15-30, tempo: 70-140
                             len(noteList)]).lower(),MSO),length))
                         finalPieceMelody.append(newNote)
                         currNote = newNote
+                    print ('Step')
+                    print (finalPieceMelody)
             else:
                 pass
             
         for iterations in range(50):
-            appendNote()
             iterations += 1
             print (iterations)
+            appendNote()
         
         ps.make_wav(finalPieceMelody,fn="output.wav")
     return mainPartGenerator(20,key,100,"Lel")
@@ -198,7 +238,7 @@ def playMusic(fileName):
     stream.close()
     p.terminate()
     
-generateMusic(20,"F",100,"Lel")
+generateMusic(20,"F",100,"Standard Pop")
 playMusic("output.wav")
 generateMusic(20,"F",100,"Lel")
 
