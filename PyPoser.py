@@ -20,8 +20,8 @@ MinsPerSec = 1/60
 WholeStep = 2
 Tonic = 0
 SubTonic = -1
-Dominant = 7
-Subdominant = 5
+Dominant = 4
+Subdominant = 3
 MelodyStartOctave = 4
 MSO = MelodyStartOctave
 tempo = 100
@@ -133,11 +133,29 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
     
     def scaleTransformer(noteList,key): # takes current noteList and starts it
                                         # from the given key's tonic note
-        return noteList # TBA
+        simplifiedList = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+        newList = noteList
+        if (not key in simplifiedList):
+            if (key == "Db"):
+                key = "C"
+            if (key == "Eb"):
+                key = "D#"
+            if (key == "Gb"):
+                key = "F#"
+            if (key == "Ab"):
+                key = "G#"
+            if (key == "Bb"):
+                key = "A#"
+        while (newList[0] != key):
+            newList.append(newList.pop(0))
+        return newList
+        
     
     ###################
-    # Genre Dispatcher TBA
+    # Genre Dispatcher
     ###################
+    noteList = scaleTransformer(noteList,key)
+    
     if (genre == "Standard Pop"):
         probabilityType = probabilityTypeSTD
         probabilityInterval = probabilityIntervalSTD
@@ -150,7 +168,7 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
         probabilityLength = probabilityLengthJazz
         noteList = scaleTransformer(noteList,key)
         scale = makeJazzScale(noteList)
-        
+    
     
     #######################
     # Calculated Variables
@@ -184,9 +202,7 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
         global finalPieceMelody
         skipOctave = False # checks if an octave is ever done
         octaveDirection = None # checks which direction it went in
-        # so the next note will go in the opposite direction to compensate
-        startingNotes = [key,noteList[(noteList.index(key) + Dominant) % 
-            len(noteList)]]
+        startingNotes = [noteList[0],noteList[4]]
         # piece can either start on tonic or dominant
         startingNote = random.choice(startingNotes)
         startingLength = getProbability(probabilityLength)
@@ -401,7 +417,7 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
     return melodyMainGenerator(totalLength,key,tempo,genre)
     return harmonyMainGenerator(totalLength,key,tempo,genre)
 
-generateMusic(20,"C","Jazz")
+generateMusic(20,"Ab","Jazz")
 
 def playMusic(fileName): # plays wav file at specified location.
                          # code adapted from online forum
@@ -450,3 +466,28 @@ ps.make_wav(finalPieceMelody, fn="melody.wav")
 
 
 playMusic("melody.wav")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
