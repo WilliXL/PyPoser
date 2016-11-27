@@ -1,2 +1,3 @@
 # PyPoser
-Algorithmic music composer using Python
+
+Probability-based music composer written in Python
