@@ -4,6 +4,7 @@ import random
 import pyaudio
 import wave
 from pydub import AudioSegment
+from tkinter import *
 
 # high level algorithm knowledge and probabilities were taken from research from
 # a Cornell research paper. I didn't use the code they had in their Github repo,
@@ -13,15 +14,19 @@ from pydub import AudioSegment
 # Computoser - rule-based, probability-driven algorithmic music composition
 # Link: https://www.academia.edu/9696759/Computoser_-_rule-based_probability-driven_algorithmic_music_composition
 
-
 #Global Constants:
 MinsPerSec = 1/60
+Width = 1000
+Height = 1000
+totalLength = 20
 # Musical Constants:
-WholeStep = 2
+step = 1
 Tonic = 0
 SubTonic = -1
-Dominant = 7
-Subdominant = 5
+STDDominant = 4
+JazzDominant = 5
+ClassicalDominant = 4
+Subdominant = 3
 MelodyStartOctave = 4
 MSO = MelodyStartOctave
 tempo = 100
@@ -39,7 +44,7 @@ noteList = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"] # starts on "C
 # list of all of the notes
 
 
-def generateMusic(totalLength,key,genre): # totalLength: 15-30
+def generateMusic(key,genre,mood): # totalLength: 15-30
     global finalPieceMelody
     global noteList
     
@@ -62,10 +67,10 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
                           ["step",48],   # stepping whole step
                           ["skip",25]]   # skip refers to an interval
                    
-    probabilityIntervalSTD = [[7,25], # perfect fifth
-                              [5,2],  # perfect fourth
-                              [4,48], # third
-                              [9,25]] # sixth
+    probabilityIntervalSTD = [[4,25], # perfect fifth
+                              [3,2],  # perfect fourth
+                              [2,48], # third
+                              [5,25]] # sixth
                        
     probabilityLengthSTD = [[16,10], 
                             [8,31],       
@@ -86,15 +91,39 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
                            ["step",60],
                            ["skip",18]]
     
-    probabilityIntervalJazz = [[7,5],
-                               [5,5],
-                               [4,65],
-                               [10,25]] # minor 7th
+    probabilityIntervalJazz = [[5,5],  # perfect fifth
+                               [4,5],  # perfect fourth
+                               [3,65], # third
+                               [7,25]] # minor 7th
                                
     probabilityLengthJazz = [[12,40],
                              [6,40],
                              [8,15],
                              [4,5]]
+                             
+    
+    ################################
+    # Classical Song Probabilities
+    ################################
+    
+    # self-derived data based on my experiences with classical music
+    
+    probabilityTypeClassical = [["unison",30],
+                                ["octave",5],
+                                ["step",45],
+                                ["skip",20]]
+    
+    probabilityIntervalClassical = [[4,33],  # perfect fifth
+                                    [3,12],  # perfect fourth
+                                    [2,50],  # third
+                                    [5,5]]   # sixth
+                               
+    probabilityLengthClassical = [[16,30], 
+                                  [8,50],       
+                                  [4,7],      
+                                  [3,3], 
+                                  [2,7],        
+                                  [1,3]]  
     
     
     ##############################
@@ -103,8 +132,6 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
                      
     meters = ["2/4","3/4","4/4","5/4"] # list of choosable meters
     meter = random.choice(meters) # selects a random meter to compose upon
-    moods = ["major","minor"]
-    mood = random.choice(moods) # either major or minor
     
     
     #####################
@@ -118,39 +145,64 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
             newList.append(noteList[note])
         return newList
     
-    def makeMajMinScale(noteList,style): # takes current noteList and only leave
+    def makeMajMinScale(noteList,mood): # takes current noteList and only leave
                                          # in necessary notes
         majorList = [0,2,4,5,7,9,11]
         minorList = [0,2,3,5,7,8,11]
         newList = []
-        if (style == "major"):
+        if (mood == "Major"):
             for note in majorList:
                 newList.append(noteList[note])
-        if (style == "minor"):
+        if (mood == "Minor"):
             for note in minorList:
                 newList.append(noteList[note])
         return newList
     
     def scaleTransformer(noteList,key): # takes current noteList and starts it
                                         # from the given key's tonic note
-        return noteList # TBA
+        simplifiedList = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]
+        newList = noteList
+        if (not key in simplifiedList):
+            if (key == "Db"):
+                key = "C"
+            if (key == "Eb"):
+                key = "D#"
+            if (key == "Gb"):
+                key = "F#"
+            if (key == "Ab"):
+                key = "G#"
+            if (key == "Bb"):
+                key = "A#"
+        while (newList[0] != key):
+            newList.append(newList.pop(0))
+        return newList
+        
     
     ###################
-    # Genre Dispatcher TBA
+    # Genre Dispatcher
     ###################
-    if (genre == "Standard Pop"):
+    
+    if (genre == "Standard"):
         probabilityType = probabilityTypeSTD
         probabilityInterval = probabilityIntervalSTD
         probabilityLength = probabilityLengthSTD
         noteList = scaleTransformer(noteList,key)
         scale = makeMajMinScale(noteList,mood)
-    elif (genre == "Jazz"):
+        Dominant = STDDominant
+    if (genre == "Jazz"):
         probabilityType = probabilityTypeJazz
         probabilityInterval = probabilityIntervalJazz
         probabilityLength = probabilityLengthJazz
         noteList = scaleTransformer(noteList,key)
         scale = makeJazzScale(noteList)
-        
+        Dominant = JazzDominant
+    if (genre == "Classical"):
+        probabilityType = probabilityTypeClassical
+        probabilityInterval = probabilityIntervalClassical
+        probabilityLength = probabilityLengthClassical
+        noteList = scaleTransformer(noteList,key)
+        scale = makeMajMinScale(noteList,mood)
+        Dominant = ClassicalDominant
     
     #######################
     # Calculated Variables
@@ -184,9 +236,7 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
         global finalPieceMelody
         skipOctave = False # checks if an octave is ever done
         octaveDirection = None # checks which direction it went in
-        # so the next note will go in the opposite direction to compensate
-        startingNotes = [key,noteList[(noteList.index(key) + Dominant) % 
-            len(noteList)]]
+        startingNotes = [noteList[0],noteList[Dominant]]
         # piece can either start on tonic or dominant
         startingNote = random.choice(startingNotes)
         startingLength = getProbability(probabilityLength)
@@ -304,7 +354,7 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
                 direction = random.choice(directions)
                 if (direction == "up"):
                     newNote = (("%s%i" %((noteList[(noteList.index(
-                        currNote[0][0].upper()) + WholeStep) %
+                        currNote[0][0].upper()) + step) %
                         len(noteList)]).lower(),MSO),length))
                     if (newNote[0][:-1].upper() in scale):
                         finalPieceMelody.append(newNote)
@@ -314,7 +364,7 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
                         return False
                 elif (direction == "down"):
                     newNote = (("%s%i" %((noteList[(noteList.index(
-                        currNote[0][0].upper()) - WholeStep) %
+                        currNote[0][0].upper()) - step) %
                         len(noteList)]).lower(),MSO),length))
                     if (newNote[0][:-1].upper() in scale):
                         finalPieceMelody.append(newNote)
@@ -325,7 +375,7 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
             if (skipOctave == True):
                 if (octaveDirection == "up"):
                     newNote = (("%s%i" %((noteList[(noteList.index(
-                        currNote[0][0].upper()) - WholeStep) %
+                        currNote[0][0].upper()) - step) %
                         len(noteList)]).lower(),MSO),length))
                     if (newNote[0][:-1].upper() in scale):
                         finalPieceMelody.append(newNote)
@@ -336,7 +386,7 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
                         return False
                 if (octaveDirection == "down"):
                     newNote = (("%s%i" %((noteList[(noteList.index(
-                        currNote[0][0].upper()) + WholeStep) %
+                        currNote[0][0].upper()) + step) %
                         len(noteList)]).lower(),MSO),length))
                     if (newNote[0][:-1].upper() in scale):
                         finalPieceMelody.append(newNote)
@@ -400,8 +450,7 @@ def generateMusic(totalLength,key,genre): # totalLength: 15-30
         
     return melodyMainGenerator(totalLength,key,tempo,genre)
     return harmonyMainGenerator(totalLength,key,tempo,genre)
-
-generateMusic(20,"C","Jazz")
+    
 
 def playMusic(fileName): # plays wav file at specified location.
                          # code adapted from online forum
@@ -425,28 +474,110 @@ def playMusic(fileName): # plays wav file at specified location.
     stream.close()
     p.terminate()
     wf.close()
-    
 
-print (finalPieceMelody)
 
 finalPieceHarmony = [('a#3',64),('a3',8),('g3',4)]
 
 #print (finalPieceHarmony)
-
-ps.make_wav(finalPieceMelody, fn="melody.wav")
 #ps.make_wav(finalPieceHarmony, fn="harmony.wav")
 
-# combine melody and harmony together to make the final piece
-#################################################################
-##### Borrowed from: http://stackoverflow.com/questions/4039158/mixing-two-audio-files-together-with-python #####
-#sound1 = AudioSegment.from_file("melody.wav")
-#sound2 = AudioSegment.from_file("harmony.wav")
+# entire GUI was built with reference to this documentation:
+# https://docs.python.org/3/library/tk.html
 
-#combined = sound1.overlay(sound2)
+################################################################################
 
-#combined.export("final.wav", format='wav')
-#################################################################
+class PyPoserGUI:
+    def __init__(self, parent):
+        
+        self.parent = parent
+        parent.title("PyPoser!")
+
+        self.desc = Label(parent, 
+            text="A Probability-Driven Music Composer Written in Python")
+        self.desc.place(x=133, y=50)
+        
+        self.cust = Label(parent, text="Customize Parameters")
+        self.cust.place(x=100, y=200)
+        
+        self.OR = Label(parent, text="OR")
+        self.OR.place(x=525, y=200)
+        
+        self.enterTitle = Label(parent, text="Enter a Title [placeholder]")
+        self.enterTitle.place(x=Width-305, y=200)
+        
+        self.keyLabel = Label(parent, text="Key")
+        self.keyLabel.place(x=100, y=360)
+        self.keys = StringVar(parent)
+        self.keys.set("C") # default key
+        self.key_button = OptionMenu(parent, self.keys,"C","G","D","A","E",
+            "B","F#","C#","F","Bb","Eb","Ab","Db","Gb","Cb")
+        self.key_button.place(x=275, y=350)
+        
+        self.genreLabel = Label(parent, text="Genre")
+        self.genreLabel.place(x=100, y=460)
+        self.genres = StringVar(parent)
+        self.genres.set("Jazz") # default genre
+        self.genre_button = OptionMenu(parent, self.genres, "Jazz",
+            "Standard", "Classical")
+        self.genre_button.place(x=240, y=450)
+        
+        self.moodLabel = Label(parent, text="Mood")
+        self.moodLabel.place(x=100, y=560)
+        self.moods = StringVar(parent)
+        self.moods.set("Major") # default mood
+        self.mood_button = OptionMenu(parent, self.moods, "Major", "Minor")
+        self.mood_button.place(x=217, y=550)
+
+        self.greet_button = Button(parent, text="Generate!", command=self.generate)
+        self.greet_button.place(x=Width/2-85,y=Height-200)
+
+        self.close_button = Button(parent, text="Quit", command=root.destroy)
+        self.close_button.place(x=885, y=Height-100)
+        
+################################################################################
+
+    def generate(self):
+        
+        generateMusic(self.keys.get(),self.genres.get(),self.moods.get())
+        ps.make_wav(finalPieceMelody, fn="melody.wav")
+        # combine melody and harmony together to make the final piece
+        #################################################################
+        ##### Borrowed from: http://stackoverflow.com/questions/4039158/mixing-two-     audio-files-together-with-python #####
+        #sound1 = AudioSegment.from_file("melody.wav")
+        #sound2 = AudioSegment.from_file("harmony.wav")
+        
+        #combined = sound1.overlay(sound2)
+        
+        #combined.export("final.wav", format='wav')
+        #################################################################
+        playMusic("melody.wav")
+        #finalPieceHarmony = []
+        #finalPieceMelody = []
+
+root = Tk()
+root.geometry("1000x1000") # width x height
+my_gui = PyPoserGUI(root)
+root.mainloop()
 
 
 
-playMusic("melody.wav")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
