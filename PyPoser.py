@@ -140,8 +140,14 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
     restProbability = [[1,5], # True
                        [0,95]] # False
     
-    harmonyProbability = [[1,35], # True
-                          [0,65]] # False
+    harmonyProbabilityClassical = [[1,35], # True
+                                   [0,65]] # False
+    
+    harmonyProbabilityStandard = [[1,40],
+                                  [0,60]]
+    
+    harmonyProbabilityJazz = [[1,25],
+                              [0,75]]
     
     
     ##############################
@@ -204,6 +210,7 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
         probabilityType = probabilityTypeSTD
         probabilityInterval = probabilityIntervalSTD
         probabilityLength = probabilityLengthSTD
+        harmonyProbability = harmonyProbabilityStandard
         noteList = scaleTransformer(noteList,key)
         scale = makeMajMinScale(noteList,mood)
         Dominant = STDDominant
@@ -211,6 +218,7 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
         probabilityType = probabilityTypeJazz
         probabilityInterval = probabilityIntervalJazz
         probabilityLength = probabilityLengthJazz
+        harmonyProbability = harmonyProbabilityJazz
         noteList = scaleTransformer(noteList,key)
         scale = makeJazzScale(noteList)
         Dominant = JazzDominant
@@ -218,6 +226,7 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
         probabilityType = probabilityTypeClassical
         probabilityInterval = probabilityIntervalClassical
         probabilityLength = probabilityLengthClassical
+        harmonyProbability = harmonyProbabilityClassical
         noteList = scaleTransformer(noteList,key)
         scale = makeMajMinScale(noteList,mood)
         Dominant = ClassicalDominant
