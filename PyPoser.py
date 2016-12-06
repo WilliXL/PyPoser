@@ -5,6 +5,7 @@ import pyaudio
 import wave
 from pydub import AudioSegment
 from tkinter import *
+import copy
 
 # high level algorithm knowledge and probabilities were taken from research from
 # a Cornell research paper. I didn't use the code they had in their Github repo,
@@ -29,6 +30,8 @@ ClassicalDominant = 4
 Subdominant = 3
 MelodyStartOctave = 4
 MSO = MelodyStartOctave
+HarmonyStartOctave = 3
+HSO = HarmonyStartOctave
 tempo = 100
 
 
@@ -46,7 +49,11 @@ noteList = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"] # starts on "C
 
 def generateMusic(key,genre,mood): # totalLength: 15-30
     global finalPieceMelody
+    global finalPieceHarmony
     global noteList
+    finalPieceMelody = []
+    finalPieceHarmony = []
+    unisonLocations = []
     
     def expandProbability(probabilityTable):
         result = []
@@ -124,6 +131,17 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
                                   [3,3], 
                                   [2,7],        
                                   [1,3]]  
+    
+    
+    ################################
+    # Replacement Probabilities
+    ################################
+    
+    restProbability = [[1,5], # True
+                       [0,95]] # False
+    
+    harmonyProbability = [[1,35], # True
+                          [0,65]] # False
     
     
     ##############################
@@ -232,7 +250,7 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
     endLength = getEndingMeasures(mainLength)
     mainLength = mainLength - endLength
     
-    def melodyMainGenerator(mainLength,key,tempo,genre):
+    def melodyMainGenerator(mainLength):
         global finalPieceMelody
         skipOctave = False # checks if an octave is ever done
         octaveDirection = None # checks which direction it went in
@@ -245,7 +263,7 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
         currNote = startingNote
         totalMeasures = 1/int(startingLength)
         
-        ##### appendNoteMelody #####
+        ##### appendNotes #####
         def appendOctave(length):
             nonlocal skipOctave
             nonlocal octaveDirection
@@ -405,51 +423,109 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
             if (noteType == "skip"):
                 returnValue = appendSkip(length)
                 if (returnValue != False):
+                    unisonLocations.append(len(finalPieceMelody))
                     appendSkip(length)
-                    #finalPieceMelody.append("u")
                     totalMeasures += (1/length)
                 else:
                     return False
             if (noteType == "step"):
                 returnValue = appendSkip(length)
                 if (returnValue != False):
+                    unisonLocations.append(len(finalPieceMelody))
                     appendStep(length)
-                    #finalPieceMelody.append("u")
                     totalMeasures += (1/length)
                 else:
                     return False
                     
     
         while (totalMeasures < mainLength):
-            type = getProbability(probabilityType)
             if ((mainLength - totalMeasures) < 1):
-                length = int(1/(mainLength - totalMeasures))
-                break
+                length = 1/(mainLength - totalMeasures)
             else:
                 length = int(getProbability(probabilityLength))
+            type = getProbability(probabilityType)
             if (type == "octave"):
                 appendOctave(length)
-            elif (type == "skip"):
+            if (type == "skip"):
                 returnValue = appendSkip(length)
                 if (returnValue != False):
                     appendSkip(length)
-            elif (type == "step"):
+            if (type == "step"):
                 returnValue = appendStep(length)
                 if (returnValue != False):
                     appendStep(length)
-            elif (type == "unison"):
+            if (type == "unison"):
                 noteTypes = ["step","step","skip"]
                 noteType = random.choice(noteTypes)
                 returnValue = appendUnison(length,noteType)
                 if (returnValue != False):
                     appendUnison(length,noteType)
+    
+    def melodyEndGenerator():
+        global finalPieceMelody
+        skipOctave = False # checks if an octave is ever done
+        octaveDirection = None # checks which direction it went in
+        endingNotes = ["%s%d" %(noteList[-1].lower(),3),
+            "%s%d" %(noteList[0].lower(),4)] # subtonic, tonic
+        finalPieceMelody[-2] = (endingNotes[0],finalPieceMelody[-2][1])
+        finalPieceMelody[-1] = (endingNotes[-1],finalPieceMelody[-1][1])
         
-
-    def harmonyMainGenerator(mainLength,key,tempo,genre):
-        pass
         
-    return melodyMainGenerator(totalLength,key,tempo,genre)
-    return harmonyMainGenerator(totalLength,key,tempo,genre)
+    def harmonyMainGenerator(mainLength):
+        global finalPieceHarmony
+        removeLocations = []
+        auxList = []
+        
+        def appendHarmony(note,length):
+            interval = getProbability(probabilityInterval)
+            newNote = (("%s%i" %((noteList[(noteList.index(
+                        note.upper()) - int(interval)) %
+                        len(noteList)]).lower(),HSO),length))
+            finalPieceHarmony.append(newNote)
+        
+        def appendHarmonyUnison(location,noteRef,lengthRef):
+            unison = ("%s%i" %(noteRef,HSO),lengthRef)
+            finalPieceHarmony[location] = unison
+                
+        for note in range(len(finalPieceMelody)):
+            noteReference = finalPieceMelody[note][0][:-1]
+            lengthReference = finalPieceMelody[note][1]
+            appendHarmony(noteReference,lengthReference)
+        
+        for note in unisonLocations:
+            noteReference = finalPieceMelody[note][0][:-1]
+            lengthReference = finalPieceMelody[note][1]
+            appendHarmonyUnison(note,noteReference,lengthReference)
+        
+        for note in range(len(finalPieceHarmony)):
+            if (not note in unisonLocations and note != 0):
+                remove = getProbability(harmonyProbability)
+                if (int(remove) == 1):
+                    newLength = 1/(1/finalPieceHarmony[note-1][1] + 
+                        1/finalPieceHarmony[note][1])
+                    removeLocations.append(note)
+                    finalPieceHarmony[note-1] = (finalPieceHarmony[note-1][0],
+                        newLength)
+        for note in range(len(finalPieceHarmony)):
+            if (not note in removeLocations):
+                auxList.append(finalPieceHarmony[note])
+        finalPieceHarmony = auxList
+        
+           
+    def melodyModifications(totalLength):
+        for note in range(len(finalPieceMelody)):
+            restProb = getProbability(restProbability)
+            if (int(restProb) == 1):
+                rest = ("r",finalPieceMelody[note][1])
+                finalPieceMelody[note] = rest
+        
+        
+    melodyMainGenerator(totalLength)
+    harmonyMainGenerator(totalLength)
+    melodyModifications(totalLength)
+    melodyEndGenerator()
+    
+    
     
 
 def playMusic(fileName): # plays wav file at specified location.
@@ -476,11 +552,6 @@ def playMusic(fileName): # plays wav file at specified location.
     wf.close()
 
 
-finalPieceHarmony = [('a#3',64),('a3',8),('g3',4)]
-
-#print (finalPieceHarmony)
-#ps.make_wav(finalPieceHarmony, fn="harmony.wav")
-
 # entire GUI was built with reference to this documentation:
 # https://docs.python.org/3/library/tk.html
 
@@ -491,71 +562,113 @@ class PyPoserGUI:
         
         self.parent = parent
         parent.title("PyPoser!")
-
+        
+        self.mainFrame = Frame(root)
+        self.leftFrame = Frame(self.mainFrame)
+        self.middleFrame = Frame(self.mainFrame)
+        self.rightFrame = Frame(self.mainFrame)
+        
+        self.space = Label(parent, text=" ")
+        self.space.pack()
+        
         self.desc = Label(parent, 
             text="A Probability-Driven Music Composer Written in Python")
-        self.desc.place(x=133, y=50)
+        self.desc.pack(padx=20)
         
-        self.cust = Label(parent, text="Customize Parameters")
-        self.cust.place(x=100, y=200)
+        self.space1 = Label(parent, text=" ")
+        self.space1.pack()
         
-        self.OR = Label(parent, text="OR")
-        self.OR.place(x=525, y=200)
+        self.instr = Label(parent, text="Customize Parameters     OR     Enter a Title")
+        self.instr.pack()
         
-        self.enterTitle = Label(parent, text="Enter a Title [placeholder]")
-        self.enterTitle.place(x=Width-305, y=200)
-        
-        self.keyLabel = Label(parent, text="Key")
-        self.keyLabel.place(x=100, y=360)
-        self.keys = StringVar(parent)
-        self.keys.set("C") # default key
-        self.key_button = OptionMenu(parent, self.keys,"C","G","D","A","E",
-            "B","F#","C#","F","Bb","Eb","Ab","Db","Gb","Cb")
-        self.key_button.place(x=275, y=350)
-        
-        self.genreLabel = Label(parent, text="Genre")
-        self.genreLabel.place(x=100, y=460)
-        self.genres = StringVar(parent)
-        self.genres.set("Jazz") # default genre
-        self.genre_button = OptionMenu(parent, self.genres, "Jazz",
-            "Standard", "Classical")
-        self.genre_button.place(x=240, y=450)
-        
-        self.moodLabel = Label(parent, text="Mood")
-        self.moodLabel.place(x=100, y=560)
-        self.moods = StringVar(parent)
-        self.moods.set("Major") # default mood
-        self.mood_button = OptionMenu(parent, self.moods, "Major", "Minor")
-        self.mood_button.place(x=217, y=550)
+        self.pad = Label(parent, text=" ")
+        self.pad.pack()
+        self.pad2 = Label(parent, text=" ")
+        self.pad2.pack()
 
-        self.greet_button = Button(parent, text="Generate!", command=self.generate)
-        self.greet_button.place(x=Width/2-85,y=Height-200)
+        self.keys = StringVar(self.leftFrame)
+        self.keys.set("C") # default key
+        self.keyLabel = Label(self.leftFrame, text="Key")
+        self.keyLabel.pack()
+        self.key_button = OptionMenu(self.leftFrame, self.keys,"C","G","D","A","E",
+            "B","F#","C#","F","Bb","Eb","Ab","Db","Gb","Cb")
+        self.key_button.pack()
+        
+        self.genreLabel = Label(self.middleFrame, text="Genre")
+        self.genreLabel.pack()
+        self.genres = StringVar(self.middleFrame)
+        self.genres.set("Jazz") # default genre
+        self.genre_button = OptionMenu(self.middleFrame, self.genres, "Jazz",
+            "Standard", "Classical")
+        self.genre_button.pack()
+        
+        self.moodLabel = Label(self.rightFrame, text="Mood")
+        self.moodLabel.pack()
+        self.moods = StringVar(self.rightFrame)
+        self.moods.set("Major") # default mood
+        self.mood_button = OptionMenu(self.rightFrame, self.moods, "Major", "Minor")
+        self.mood_button.pack()
+
+        self.leftFrame.pack(side=LEFT)
+        self.middleFrame.pack(side=LEFT)
+        self.rightFrame.pack(side=LEFT)
+        self.mainFrame.pack()
+        
+        self.space2 = Label(parent, text=" ")
+        self.space2.pack()
+        
+        self.titleLabel = Label(parent, text="Enter Title[WIP]")
+        self.titleLabel.pack()
+        self.title = StringVar(parent)
+        self.titleEntry = Entry(root, textvariable=self.title)
+        self.titleEntry.pack()
+        
+        self.error = Label(parent, text="")
+        self.error.pack()
+        
+        self.space3 = Label(parent, text=" ")
+        self.space3.pack()
+        self.space4 = Label(parent, text=" ")
+        self.space4.pack()
+        
+        self.generate_button = Button(parent, text="Generate!", command=self.generateDispatcher)
+        self.generate_button.pack()
 
         self.close_button = Button(parent, text="Quit", command=root.destroy)
-        self.close_button.place(x=885, y=Height-100)
+        self.close_button.pack(side=RIGHT,padx=20,pady=20)
         
 ################################################################################
+    
+    def generateDispatcher(self):
+        if (self.title.get().isalpha()):
+            self.error.configure(text="")
+            self.generateWithTitle()
+        elif (self.title.get().isdigit()):
+            self.error.configure(text="Enter Proper Word Ples",color="red")
+        else:
+            self.error.configure(text="")
+            self.generateWithVariables()
 
-    def generate(self):
-        
+    def generateWithVariables(self):
         generateMusic(self.keys.get(),self.genres.get(),self.moods.get())
         ps.make_wav(finalPieceMelody, fn="melody.wav")
+        ps.make_wav(finalPieceHarmony, fn="harmony.wav")
         # combine melody and harmony together to make the final piece
         #################################################################
-        ##### Borrowed from: http://stackoverflow.com/questions/4039158/mixing-two-     audio-files-together-with-python #####
-        #sound1 = AudioSegment.from_file("melody.wav")
-        #sound2 = AudioSegment.from_file("harmony.wav")
+        ##### Borrowed from: http://stackoverflow.com/questions/4039158/mixing-two-audio-files-together-with-python #####
+        sound1 = AudioSegment.from_file("melody.wav")
+        sound2 = AudioSegment.from_file("harmony.wav")
         
-        #combined = sound1.overlay(sound2)
+        combined = sound1.overlay(sound2)
         
-        #combined.export("final.wav", format='wav')
+        combined.export("final.wav", format='wav')
         #################################################################
-        playMusic("melody.wav")
-        #finalPieceHarmony = []
-        #finalPieceMelody = []
+        playMusic("final.wav")
+
+    def generateWithTitle(self):
+        pass
 
 root = Tk()
-root.geometry("1000x1000") # width x height
 my_gui = PyPoserGUI(root)
 root.mainloop()
 
