@@ -5,7 +5,10 @@ import pyaudio
 import wave
 from pydub import AudioSegment
 from tkinter import *
+from tkinter import ttk
 import copy
+from monkeylearn import MonkeyLearn
+ml = MonkeyLearn('7b29f6454c7c7224ff668d5d20f181fd406f340a')
 
 # high level algorithm knowledge and probabilities were taken from research from
 # a Cornell research paper. I didn't use the code they had in their Github repo,
@@ -20,6 +23,8 @@ MinsPerSec = 1/60
 Width = 1000
 Height = 1000
 totalLength = 20
+key_id = 'cl_ETmJQsVx'
+mood_id = 'cl_7a2qVQAb'
 # Musical Constants:
 step = 1
 Tonic = 0
@@ -78,6 +83,10 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
                               [3,2],  # perfect fourth
                               [2,48], # third
                               [5,25]] # sixth
+                              
+    probabilityHarmonySTD = [[4,25], # same as interval, but less dissonance
+                             [3,15],
+                             [2,55]]
                        
     probabilityLengthSTD = [[16,10], 
                             [8,31],       
@@ -102,6 +111,10 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
                                [4,5],  # perfect fourth
                                [3,65], # third
                                [7,25]] # minor 7th
+    
+    probabilityHarmonyJazz = [[5,30],  # perfect fifth
+                              [4,20],  # perfect fourth
+                              [3,45]]  # third
                                
     probabilityLengthJazz = [[12,40],
                              [6,40],
@@ -124,12 +137,16 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
                                     [3,12],  # perfect fourth
                                     [2,50],  # third
                                     [5,5]]   # sixth
+                                    
+    probabilityHarmonyClassical = [[4,33],  # perfect fifth
+                                   [3,17],  # perfect fourth
+                                   [2,50]]  # third
                                
-    probabilityLengthClassical = [[16,30], 
-                                  [8,50],       
-                                  [4,7],      
-                                  [3,3], 
-                                  [2,7],        
+    probabilityLengthClassical = [[16,15], 
+                                  [8,40],       
+                                  [4,20],      
+                                  [3,8], 
+                                  [2,10],        
                                   [1,3]]  
     
     
@@ -140,14 +157,14 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
     restProbability = [[1,5], # True
                        [0,95]] # False
     
-    harmonyProbabilityClassical = [[1,35], # True
-                                   [0,65]] # False
+    harmonyProbabilityClassical = [[1,50], # True
+                                   [0,50]] # False
     
     harmonyProbabilityStandard = [[1,40],
                                   [0,60]]
     
-    harmonyProbabilityJazz = [[1,25],
-                              [0,75]]
+    harmonyProbabilityJazz = [[1,35],
+                              [0,65]]
     
     
     ##############################
@@ -210,6 +227,7 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
         probabilityType = probabilityTypeSTD
         probabilityInterval = probabilityIntervalSTD
         probabilityLength = probabilityLengthSTD
+        probabilityHarmony = probabilityHarmonySTD
         harmonyProbability = harmonyProbabilityStandard
         noteList = scaleTransformer(noteList,key)
         scale = makeMajMinScale(noteList,mood)
@@ -218,6 +236,7 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
         probabilityType = probabilityTypeJazz
         probabilityInterval = probabilityIntervalJazz
         probabilityLength = probabilityLengthJazz
+        probabilityHarmony = probabilityHarmonyJazz
         harmonyProbability = harmonyProbabilityJazz
         noteList = scaleTransformer(noteList,key)
         scale = makeJazzScale(noteList)
@@ -226,6 +245,7 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
         probabilityType = probabilityTypeClassical
         probabilityInterval = probabilityIntervalClassical
         probabilityLength = probabilityLengthClassical
+        probabilityHarmony = probabilityHarmonyClassical
         harmonyProbability = harmonyProbabilityClassical
         noteList = scaleTransformer(noteList,key)
         scale = makeMajMinScale(noteList,mood)
@@ -234,16 +254,6 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
     #######################
     # Calculated Variables
     #######################
-
-    def titleCreator(mood,key): # TBA
-        happyNouns = ["Love","Yesterday","Piano","Heaven","Babe","Freedom",
-            "Home","Weekend","Wonder","Night","Message","Heart,","Gold","Grace"]
-        happyVerbs = ["Out","Imagine","Rising","Need","Love","Look","Falling",
-            "Knocking","Bound","Take"]
-        happyAdjectives = ["Happy","Lovely","Amazing"]
-        title = ""
-        # if (mood == "major"):
-        #TBA
         
     def getMainMeasures(totalLength,tempo,meter):
         return int((tempo*MinsPerSec*totalLength/int(meter[0])))
@@ -482,13 +492,17 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
         
     def harmonyMainGenerator(mainLength):
         global finalPieceHarmony
-        removeLocations = []
+        extensions = {}
         auxList = []
         
         def appendHarmony(note,length):
-            interval = getProbability(probabilityInterval)
+            interval = getProbability(probabilityHarmony)
             newNote = (("%s%i" %((noteList[(noteList.index(
                         note.upper()) - int(interval)) %
+                        len(noteList)]).lower(),HSO),length))
+            if (not newNote[0][:-1].upper() in scale):
+                newNote = (("%s%i" %((noteList[(noteList.index(
+                        note.upper()) - int(interval) - 1) %
                         len(noteList)]).lower(),HSO),length))
             finalPieceHarmony.append(newNote)
         
@@ -500,27 +514,30 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
             noteReference = finalPieceMelody[note][0][:-1]
             lengthReference = finalPieceMelody[note][1]
             appendHarmony(noteReference,lengthReference)
-        
         for note in unisonLocations:
             noteReference = finalPieceMelody[note][0][:-1]
             lengthReference = finalPieceMelody[note][1]
             appendHarmonyUnison(note,noteReference,lengthReference)
         
         for note in range(len(finalPieceHarmony)):
-            if (not note in unisonLocations and note != 0):
+            if (not note in unisonLocations and note != 0 and finalPieceHarmony[note-1] != "r"):
                 remove = getProbability(harmonyProbability)
                 if (int(remove) == 1):
-                    newLength = 1/(1/finalPieceHarmony[note-1][1] + 
-                        1/finalPieceHarmony[note][1])
-                    removeLocations.append(note)
-                    finalPieceHarmony[note-1] = (finalPieceHarmony[note-1][0],
-                        newLength)
+                    extensions[note] = finalPieceHarmony[note][1]
+                    finalPieceHarmony[note] = "r"
+        
         for note in range(len(finalPieceHarmony)):
-            if (not note in removeLocations):
+            if (finalPieceHarmony[note] == "r"):
+                newLength = 1/(1/extensions[note] + 1/finalPieceHarmony[note-1][1])
+                newNote = (finalPieceHarmony[note-1][0],newLength)
+                finalPieceHarmony[note-1] = newNote
+        
+        for note in range(len(finalPieceHarmony)):
+            if (finalPieceHarmony[note] != "r"):
                 auxList.append(finalPieceHarmony[note])
         finalPieceHarmony = auxList
-        
-           
+
+
     def melodyModifications(totalLength):
         for note in range(len(finalPieceMelody)):
             restProb = getProbability(restProbability)
@@ -533,8 +550,6 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
     harmonyMainGenerator(totalLength)
     melodyModifications(totalLength)
     melodyEndGenerator()
-    
-    
     
 
 def playMusic(fileName): # plays wav file at specified location.
@@ -552,13 +567,25 @@ def playMusic(fileName): # plays wav file at specified location.
         output = True)
     data = wf.readframes(chunk)
 
-    while data != '':
+    while data != b'':
         stream.write(data)
         data = wf.readframes(chunk)
 
     stream.close()
     p.terminate()
     wf.close()
+
+# combine melody and harmony together to make the final piece
+#################################################################
+##### Borrowed from: http://stackoverflow.com/questions/4039158/mixing-two-audio-files-together-with-python #####
+def combine():
+    sound1 = AudioSegment.from_file("melody.wav")
+    sound2 = AudioSegment.from_file("harmony.wav")
+       
+    combined = sound1.overlay(sound2)
+       
+    combined.export("final.wav", format='wav')
+#################################################################
 
 
 # entire GUI was built with reference to this documentation:
@@ -568,7 +595,7 @@ def playMusic(fileName): # plays wav file at specified location.
 
 class PyPoserGUI:
     def __init__(self, parent):
-        
+
         self.parent = parent
         parent.title("PyPoser!")
         
@@ -626,7 +653,7 @@ class PyPoserGUI:
         self.space2 = Label(parent, text=" ")
         self.space2.pack()
         
-        self.titleLabel = Label(parent, text="Enter Title[WIP]")
+        self.titleLabel = Label(parent, text="Enter Title")
         self.titleLabel.pack()
         self.title = StringVar(parent)
         self.titleEntry = Entry(root, textvariable=self.title)
@@ -637,11 +664,15 @@ class PyPoserGUI:
         
         self.space3 = Label(parent, text=" ")
         self.space3.pack()
-        self.space4 = Label(parent, text=" ")
-        self.space4.pack()
         
         self.generate_button = Button(parent, text="Generate!", command=self.generateDispatcher)
         self.generate_button.pack()
+        
+        self.space4 = Label(parent, text=" ")
+        self.space4.pack()
+        
+        self.generating = Label(parent, text="")
+        self.generating.pack()
 
         self.close_button = Button(parent, text="Quit", command=root.destroy)
         self.close_button.pack(side=RIGHT,padx=20,pady=20)
@@ -649,34 +680,55 @@ class PyPoserGUI:
 ################################################################################
     
     def generateDispatcher(self):
-        if (self.title.get().isalpha()):
+        if (not self.title.get().isdigit() and self.title.get() != ""):
             self.error.configure(text="")
+            self.generating.configure(text="Generating. Please Wait")
             self.generateWithTitle()
         elif (self.title.get().isdigit()):
-            self.error.configure(text="Enter Proper Word Ples",color="red")
+            self.error.configure(text="Enter Proper Word Ples",fg="red")
         else:
             self.error.configure(text="")
+            self.generating.configure(text="Generating. Please Wait")
             self.generateWithVariables()
 
     def generateWithVariables(self):
         generateMusic(self.keys.get(),self.genres.get(),self.moods.get())
         ps.make_wav(finalPieceMelody, fn="melody.wav")
         ps.make_wav(finalPieceHarmony, fn="harmony.wav")
-        # combine melody and harmony together to make the final piece
-        #################################################################
-        ##### Borrowed from: http://stackoverflow.com/questions/4039158/mixing-two-audio-files-together-with-python #####
-        sound1 = AudioSegment.from_file("melody.wav")
-        sound2 = AudioSegment.from_file("harmony.wav")
-        
-        combined = sound1.overlay(sound2)
-        
-        combined.export("final.wav", format='wav')
-        #################################################################
+        combine()
         playMusic("final.wav")
-
-    def generateWithTitle(self):
-        pass
-
+        
+    def generateWithTitle(self): # uses data from tonalito.com
+                                 # RAW data found in SongClassificationData.xlsx
+                                 # how to integrate MonkeyLearn is found:
+                                 # https://github.com/monkeylearn/monkeylearn-python
+        title = self.title.get()
+        if (title == "Snoop Dogg"):
+            playMusic("easterEgg.wav")
+        if (title == "Queen"):
+            playMusic("easterEgg2.wav")
+        if (title == "Cellphone"):
+            playMusic("easterEgg3.wav")
+        if (title.lower() == "112 is easy"):
+            playMusic("easterEgg4.wav")
+        keyMonkeyList = [title]
+        moodMonkeyList = [title]
+        keyMonkey = ml.classifiers.classify(key_id, keyMonkeyList, sandbox=True)
+        moodMonkey = ml.classifiers.classify(mood_id, moodMonkeyList, sandbox=True)
+        genres = ["Jazz","Classical","Standard"] # I had no data on titles as they 
+                                                 # relate to genre, so I'm just
+                                                 # getting a genre by random
+        genre = random.choice(genres)
+        key = keyMonkey.result[0][0]['label']
+        mood = moodMonkey.result[0][0]['label']
+        print (key,genre,mood)
+        generateMusic(key,genre,mood)
+        ps.make_wav(finalPieceMelody, fn="melody.wav")
+        ps.make_wav(finalPieceHarmony, fn="harmony.wav")
+        combine()
+        playMusic("final.wav")
+        
+        
 root = Tk()
 my_gui = PyPoserGUI(root)
 root.mainloop()
