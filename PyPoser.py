@@ -4,8 +4,8 @@ import random
 import pyaudio
 import wave
 from pydub import AudioSegment
-from tkinter import *
-from tkinter import ttk
+import tkinter as tk
+from tkinter import LEFT, RIGHT
 import copy
 from monkeylearn import MonkeyLearn
 ml = MonkeyLearn('7b29f6454c7c7224ff668d5d20f181fd406f340a')
@@ -538,17 +538,46 @@ def generateMusic(key,genre,mood): # totalLength: 15-30
         finalPieceHarmony = auxList
 
 
-    def melodyModifications(totalLength):
+    def melodyModifications():
         for note in range(len(finalPieceMelody)):
             restProb = getProbability(restProbability)
             if (int(restProb) == 1):
                 rest = ("r",finalPieceMelody[note][1])
                 finalPieceMelody[note] = rest
+                
+    def lessRandom():
+        options = [1,2]
+        option = random.choice(options)
+        if (option == 1):
+            positions = [note for note in range(len(finalPieceMelody))]
+            positions = positions[:-20]
+            position = random.choice(positions)
+            replaceSeg = finalPieceMelody[position:position+16]
+            replaceSegNums = positions[position:position+16]
+            for i in replaceSegNums:
+                positions.remove(i)
+            replace = random.choice(positions)
+            for note in range(replace,replace+16):
+                finalPieceMelody[note] = replaceSeg[0]
+                replaceSeg.pop(0)
+        if (option == 2):
+            positions = [note for note in range(len(finalPieceMelody))]
+            positions = positions[:-20]
+            position = random.choice(positions)
+            replaceSeg = finalPieceMelody[position:position+16]
+            replaceSegNums = positions[position:position+16]
+            for i in replaceSegNums:
+                positions.remove(i)
+            replace = random.choice(positions)
+            for note in range(replace,replace+16):
+                finalPieceMelody[note] = replaceSeg[-1]
+                replaceSeg.pop()
         
         
     melodyMainGenerator(totalLength)
+    lessRandom()
     harmonyMainGenerator(totalLength)
-    melodyModifications(totalLength)
+    melodyModifications()
     melodyEndGenerator()
     
 
@@ -588,107 +617,129 @@ def combine():
 #################################################################
 
 
-# entire GUI was built with reference to this documentation:
+# entire GUI was built with reference to this documentation and forum post:
 # https://docs.python.org/3/library/tk.html
+# http://stackoverflow.com/questions/7546050/switch-between-two-frames-in-tkinter
 
 ################################################################################
 
-class PyPoserGUI:
-    def __init__(self, parent):
+class PyPoserGUI(tk.Tk):
+    def __init__(self, *args, **kwargs):
+        
+        tk.Tk.__init__(self, *args, **kwargs)
+        self.title("PyPoser!")
+        container = tk.Frame(self)
 
-        self.parent = parent
-        parent.title("PyPoser!")
+        container.pack(side="top", fill="both", expand = True)
+
+        container.grid_rowconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)
+
+        self.frames = {}
+
+        for F in (HelpPage,MainPage):
+            frame = F(container, self)
+            self.frames[F] = frame
+            frame.grid(row=0, column=0, sticky="nsew")
+
+        self.show_frame(HelpPage)
+
+    def show_frame(self, cont):
+        frame = self.frames[cont]
+        frame.tkraise()
+    
+    
+    
+
+class HelpPage(tk.Frame):
+    def __init__(self,parent,controller):
+        tk.Frame.__init__(self,parent)
+        label = tk.Label(self,text="PyPoser! - A Probability-Driven Music Composer Written in Python")
+        label.pack(pady=20,padx=30)
+        label1 = tk.Label(self,text='''Choose to either customize parameters
+        or enter in a song title''')
+        label1.pack()
+        label2 = tk.Label(self,text='''The 3 parameters are Key, Genre, and Mood. 
+        These allow you to choose from the set of all musical keys, the 
+        genres of Jazz, Classical, or Standard (Pop Music), and play that piece 
+        in either a Major or Minor tone.''')
+        label2.pack(pady=20)
+        label3 = tk.Label(self,text='''If you enter in a title, PyPoser will use
+        a Machine Learning algorithm on the entered title and parse out a 
+        Key and a Mood. A Genre will be randomly assigned.''')
+        label3.pack(pady=20)
+        ready = tk.Label(self,text="Ready to get started?")
+        ready.pack(pady=10)
+        button = tk.Button(self, text="Aight, It's Lit",
+                            command=lambda: controller.show_frame(MainPage))
+        button.pack(pady=20)
         
-        self.mainFrame = Frame(root)
-        self.leftFrame = Frame(self.mainFrame)
-        self.middleFrame = Frame(self.mainFrame)
-        self.rightFrame = Frame(self.mainFrame)
+
+class MainPage(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        instr = tk.Label(self, text="Customize Parameters  OR  Enter a Title")
+        instr.pack(pady=40)
         
-        self.space = Label(parent, text=" ")
-        self.space.pack()
+        mainFrame = tk.Frame(self)
+        leftFrame = tk.Frame(mainFrame)
+        middleFrame = tk.Frame(mainFrame)
+        rightFrame = tk.Frame(mainFrame)
         
-        self.desc = Label(parent, 
-            text="A Probability-Driven Music Composer Written in Python")
-        self.desc.pack(padx=20)
+        self.keys = tk.StringVar(leftFrame)
+        self.keys.set("C") # default key
+        self.keyLabel = tk.Label(leftFrame, text="Key")
+        self.keyLabel.pack()
+        self.key_button = tk.OptionMenu(leftFrame, self.keys,"C","G","D","A","E",
+            "B","F#","C#","F","Bb","Eb","Ab","Db","Gb","Cb")
+        self.key_button.pack(padx=10)
         
-        self.space1 = Label(parent, text=" ")
+        self.genreLabel = tk.Label(middleFrame, text="Genre")
+        self.genreLabel.pack()
+        self.genres = tk.StringVar(middleFrame)
+        self.genres.set("Jazz") # default genre
+        self.genre_button = tk.OptionMenu(middleFrame, self.genres, "Jazz",
+            "Standard", "Classical")
+        self.genre_button.pack(padx=10)
+        
+        self.moodLabel = tk.Label(rightFrame, text="Mood")
+        self.moodLabel.pack()
+        self.moods = tk.StringVar(rightFrame)
+        self.moods.set("Major") # default mood
+        self.mood_button = tk.OptionMenu(rightFrame, self.moods, "Major", "Minor")
+        self.mood_button.pack(padx=10)
+        
+        leftFrame.pack(side=LEFT)
+        middleFrame.pack(side=LEFT)
+        rightFrame.pack(side=LEFT)
+        mainFrame.pack()
+        
+        self.space1 = tk.Label(self, text=" ")
         self.space1.pack()
         
-        self.instr = Label(parent, text="Customize Parameters     OR     Enter a Title")
-        self.instr.pack()
-        
-        self.pad = Label(parent, text=" ")
-        self.pad.pack()
-        self.pad2 = Label(parent, text=" ")
-        self.pad2.pack()
-
-        self.keys = StringVar(self.leftFrame)
-        self.keys.set("C") # default key
-        self.keyLabel = Label(self.leftFrame, text="Key")
-        self.keyLabel.pack()
-        self.key_button = OptionMenu(self.leftFrame, self.keys,"C","G","D","A","E",
-            "B","F#","C#","F","Bb","Eb","Ab","Db","Gb","Cb")
-        self.key_button.pack()
-        
-        self.genreLabel = Label(self.middleFrame, text="Genre")
-        self.genreLabel.pack()
-        self.genres = StringVar(self.middleFrame)
-        self.genres.set("Jazz") # default genre
-        self.genre_button = OptionMenu(self.middleFrame, self.genres, "Jazz",
-            "Standard", "Classical")
-        self.genre_button.pack()
-        
-        self.moodLabel = Label(self.rightFrame, text="Mood")
-        self.moodLabel.pack()
-        self.moods = StringVar(self.rightFrame)
-        self.moods.set("Major") # default mood
-        self.mood_button = OptionMenu(self.rightFrame, self.moods, "Major", "Minor")
-        self.mood_button.pack()
-
-        self.leftFrame.pack(side=LEFT)
-        self.middleFrame.pack(side=LEFT)
-        self.rightFrame.pack(side=LEFT)
-        self.mainFrame.pack()
-        
-        self.space2 = Label(parent, text=" ")
-        self.space2.pack()
-        
-        self.titleLabel = Label(parent, text="Enter Title")
+        self.titleLabel = tk.Label(self, text="Enter Title")
         self.titleLabel.pack()
-        self.title = StringVar(parent)
-        self.titleEntry = Entry(root, textvariable=self.title)
+        self.title = tk.StringVar(self)
+        self.titleEntry = tk.Entry(self, textvariable=self.title)
         self.titleEntry.pack()
         
-        self.error = Label(parent, text="")
-        self.error.pack()
+        self.space2 = tk.Label(self, text=" ")
+        self.space2.pack()
         
-        self.space3 = Label(parent, text=" ")
+        self.generate_button = tk.Button(self, text="Generate!", command=self.generateDispatcher)
+        self.generate_button.pack(pady=30)
+
+        self.space3 = tk.Label(self, text=" ")
         self.space3.pack()
         
-        self.generate_button = Button(parent, text="Generate!", command=self.generateDispatcher)
-        self.generate_button.pack()
+        helpButton = tk.Button(self, text="Instructions",
+                            command=lambda: controller.show_frame(HelpPage))
+        helpButton.pack(pady=10)
         
-        self.space4 = Label(parent, text=" ")
-        self.space4.pack()
-        
-        self.generating = Label(parent, text="")
-        self.generating.pack()
-
-        self.close_button = Button(parent, text="Quit", command=root.destroy)
-        self.close_button.pack(side=RIGHT,padx=20,pady=20)
-        
-################################################################################
-    
     def generateDispatcher(self):
         if (not self.title.get().isdigit() and self.title.get() != ""):
-            self.error.configure(text="")
-            self.generating.configure(text="Generating. Please Wait")
             self.generateWithTitle()
-        elif (self.title.get().isdigit()):
-            self.error.configure(text="Enter Proper Word Ples",fg="red")
         else:
-            self.error.configure(text="")
-            self.generating.configure(text="Generating. Please Wait")
             self.generateWithVariables()
 
     def generateWithVariables(self):
@@ -721,17 +772,17 @@ class PyPoserGUI:
         genre = random.choice(genres)
         key = keyMonkey.result[0][0]['label']
         mood = moodMonkey.result[0][0]['label']
-        print (key,genre,mood)
         generateMusic(key,genre,mood)
         ps.make_wav(finalPieceMelody, fn="melody.wav")
         ps.make_wav(finalPieceHarmony, fn="harmony.wav")
         combine()
         playMusic("final.wav")
         
-        
-root = Tk()
-my_gui = PyPoserGUI(root)
-root.mainloop()
+    
+
+app = PyPoserGUI()
+app.mainloop()        
+################################################################################
 
 
 
