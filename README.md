@@ -4,6 +4,8 @@ A Probability-Driven Music Composer Written in Python
 
 Created for Carnegie Mellon University's F16 15-112 Term Project.
 
+[Watch the video demo submitted for the course](https://www.youtube.com/watch?v=zIM6WJvDo3k&t=20s)
+
 ## Getting Started
 
 ### External Libraries
