@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import LEFT, RIGHT
 import copy
 from monkeylearn import MonkeyLearn
-ml = MonkeyLearn('7b29f6454c7c7224ff668d5d20f181fd406f340a')
+ml = MonkeyLearn('lmao')
 
 # high level algorithm knowledge and probabilities were taken from research from
 # a Cornell research paper. I didn't use the code they had in their Github repo,
